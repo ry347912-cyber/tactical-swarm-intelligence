@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TACTICAL SWARM INTELLIGENCE</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+
+  :root {
+    --bg:        #080c0a;
+    --panel:     #0c1410;
+    --border:    #1e3a28;
+    --blue:      #00d4ff;
+    --blue-dim:  #004466;
+    --red:       #ff3030;
+    --red-dim:   #550000;
+    --green:     #00ff88;
+    --gold:      #ffd700;
+    --text:      #a8c4b0;
+    --mono:      'Share Tech Mono', monospace;
+    --sans:      'Rajdhani', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    height: 100%;
+    overflow-x: hidden;
+  }
+
+  /* ── SCANLINE overlay ── */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,100,0.015) 2px,
+      rgba(0,255,100,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, #050d08, #0c1a10, #050d08);
+  }
+  .logo {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: 4px;
+    color: var(--green);
+    text-shadow: 0 0 12px rgba(0,255,136,0.5);
+  }
+  .logo span { color: var(--gold); }
+  .ticker {
+    font-size: 0.65rem;
+    color: #446644;
+    letter-spacing: 2px;
+    animation: blink 1.4s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── LAYOUT ── */
+  .shell {
+    display: grid;
+    grid-template-columns: 220px 1fr 220px;
+    grid-template-rows: auto 1fr auto;
+    min-height: calc(100vh - 48px);
+    gap: 0;
+  }
+
+  /* ── SIDE PANELS ── */
+  .panel {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .panel.right {
+    border-right: none;
+    border-left: 1px solid var(--border);
+  }
+  .panel-title {
+    font-family: var(--sans);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--gold);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+
+  /* ── STRATEGY BADGE ── */
+  .strategy-box {
+    background: #0a1a0e;
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    border-radius: 2px;
+  }
+  .strategy-label {
+    font-size: 0.6rem;
+    color: #446644;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .strategy-value {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 2px;
+  }
+  .strategy-value.blue { color: var(--blue); text-shadow: 0 0 8px var(--blue); }
+  .strategy-value.red  { color: var(--red);  text-shadow: 0 0 8px var(--red); }
+
+  /* ── UNIT LIST ── */
+  .unit-list { display: flex; flex-direction: column; gap: 3px; flex: 1; overflow-y: auto; }
+  .unit-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.58rem;
+    padding: 2px 4px;
+    border-radius: 1px;
+  }
+  .unit-row.dead { opacity: 0.3; }
+  .unit-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .unit-dot.commander { border-radius: 1px; width: 8px; height: 8px; }
+  .unit-hp {
+    flex: 1;
+    height: 3px;
+    background: #1a2e1e;
+    border-radius: 1px;
+  }
+  .unit-hp-fill {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.15s;
+  }
+
+  /* ── ZONE CONTROL ── */
+  .zone-grid { display: flex; flex-direction: column; gap: 4px; }
+  .zone-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    padding: 3px 6px;
+    border: 1px solid #1a2a1e;
+    border-radius: 1px;
+    background: #0a150d;
+  }
+  .zone-name { color: #6a9a7a; letter-spacing: 1px; }
+  .zone-owner { font-weight: 700; letter-spacing: 1px; }
+  .zone-owner.blue { color: var(--blue); }
+  .zone-owner.red  { color: var(--red); }
+  .zone-owner.neutral { color: #446644; }
+
+  /* ── SCORE BAR ── */
+  .score-section {}
+  .score-bar-wrap {
+    background: #0a150d;
+    border: 1px solid var(--border);
+    height: 10px;
+    border-radius: 1px;
+    overflow: hidden;
+    display: flex;
+  }
+  .score-bar-blue { height: 100%; background: var(--blue); transition: width 0.3s; }
+  .score-bar-red  { height: 100%; background: var(--red);  transition: width 0.3s; flex: 1; }
+  .score-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    margin-top: 4px;
+  }
+  .score-labels .b { color: var(--blue); font-family: var(--sans); font-weight: 700; }
+  .score-labels .r { color: var(--red);  font-family: var(--sans); font-weight: 700; }
+
+  /* ── MAIN CANVAS AREA ── */
+  .center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    gap: 10px;
+  }
+  .canvas-wrap {
+    position: relative;
+    border: 1px solid var(--border);
+    box-shadow: 0 0 40px rgba(0,255,136,0.04), inset 0 0 60px rgba(0,0,0,0.6);
+  }
+  canvas { display: block; }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    padding: 7px 18px;
+    border: 1px solid var(--green);
+    background: transparent;
+    color: var(--green);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--green); color: #050d08; }
+  .btn.danger { border-color: var(--red); color: var(--red); }
+  .btn.danger:hover { background: var(--red); color: #fff; }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+
+  .tick-display {
+    font-size: 0.65rem;
+    color: #446644;
+    letter-spacing: 2px;
+  }
+
+  /* ── EVENT LOG ── */
+  .log-box {
+    background: #060e08;
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    font-size: 0.58rem;
+    line-height: 1.7;
+    height: 90px;
+    overflow-y: auto;
+    color: #4a7a5a;
+    width: 100%;
+  }
+  .log-box p { margin: 0; }
+
+  /* ── WINNER OVERLAY ── */
+  #winner-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.78);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    z-index: 100;
+  }
+  #winner-overlay.show { display: flex; }
+  .winner-text {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 2.5rem;
+    letter-spacing: 8px;
+    text-shadow: 0 0 30px currentColor;
+  }
+  .winner-text.blue { color: var(--blue); }
+  .winner-text.red  { color: var(--red); }
+
+  /* ── FOOTER ── */
+  footer {
+    grid-column: 1/-1;
+    text-align: center;
+    font-size: 0.55rem;
+    color: #2a4a32;
+    letter-spacing: 3px;
+    padding: 8px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">TACTICAL <span>SWARM</span> INTELLIGENCE</div>
+  <div class="ticker" id="ticker">● SIMULATION ACTIVE</div>
+  <div style="font-size:0.6rem;color:#2a4a32;letter-spacing:2px;">v1.0.0 — CLASSIFIED</div>
+</header>
+
+<div class="shell">
+
+  <!-- LEFT PANEL — Blue Team -->
+  <div class="panel">
+    <div class="panel-title">◈ BLUE FORCE</div>
+
+    <div class="strategy-box">
+      <div class="strategy-label">STRATEGY</div>
+      <div class="strategy-value blue" id="blue-strategy">CONTROL</div>
+    </div>
+
+    <div class="score-section">
+      <div class="panel-title" style="font-size:0.6rem;margin-bottom:6px;">STRENGTH RATIO</div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-blue" id="ratio-bar-blue" style="width:50%"></div>
+        <div class="score-bar-red"  id="ratio-bar-red"></div>
+      </div>
+      <div class="score-labels">
+        <span class="b" id="blue-alive-count">15</span>
+        <span style="color:#446644;font-size:0.55rem">ALIVE</span>
+        <span class="r" id="red-alive-count">15</span>
+      </div>
+    </div>
+
+    <div class="panel-title">UNITS</div>
+    <div class="unit-list" id="blue-unit-list"></div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="center">
+    <div class="canvas-wrap">
+      <canvas id="battlefield" width="800" height="600"></canvas>
+      <div id="winner-overlay">
+        <div class="winner-text" id="winner-text">BLUE WINS</div>
+        <button class="btn" onclick="resetBattle()">↺ NEW BATTLE</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="btn-start" onclick="toggleSim()">▶ START</button>
+      <button class="btn danger" onclick="resetBattle()">↺ RESET</button>
+      <div class="tick-display">TICK: <span id="tick-num">0</span></div>
+      <div class="tick-display">SPEED:
+        <select id="speed-select" style="background:#0c1410;border:1px solid #1e3a28;color:#a8c4b0;font-family:var(--mono);font-size:0.6rem;padding:2px 4px;">
+          <option value="100">×1</option>
+          <option value="50">×2</option>
+          <option value="20">×5</option>
+          <option value="10" selected>×10</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="log-box" id="event-log">
+      <p style="color:#2a5a3a">// awaiting simulation start…</p>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL — Red Team -->
+  <div class="panel right">
+    <div class="panel-title">◈ RED FORCE</div>
+
+    <div class="strategy-box">
+      <div class="strategy-label">STRATEGY</div>
+      <div class="strategy-value red" id="red-strategy">AGGRESSIVE</div>
+    </div>
+
+    <div class="panel-title">ZONE CONTROL</div>
+    <div class="zone-grid" id="zone-grid">
+      <div class="zone-row"><span class="zone-name">ALPHA</span><span class="zone-owner neutral" id="z0">NEUTRAL</span></div>
+      <div class="zone-row"><span class="zone-name">BRAVO</span><span class="zone-owner neutral" id="z1">NEUTRAL</span></div>
+      <div class="zone-row"><span class="zone-name">CHARLIE</span><span class="zone-owner neutral" id="z2">NEUTRAL</span></div>
+      <div class="zone-row"><span class="zone-name">DELTA</span><span class="zone-owner neutral" id="z3">NEUTRAL</span></div>
+      <div class="zone-row"><span class="zone-name">ECHO</span><span class="zone-owner neutral" id="z4">NEUTRAL</span></div>
+    </div>
+
+    <div class="panel-title">ZONE SCORE</div>
+    <div class="score-section">
+      <div class="score-bar-wrap">
+        <div class="score-bar-blue" id="zone-bar-blue" style="width:50%"></div>
+        <div class="score-bar-red"  id="zone-bar-red"></div>
+      </div>
+      <div class="score-labels">
+        <span class="b" id="blue-zones">0</span>
+        <span style="color:#446644;font-size:0.55rem">ZONES</span>
+        <span class="r" id="red-zones">0</span>
+      </div>
+    </div>
+
+    <div class="panel-title">UNITS</div>
+    <div class="unit-list" id="red-unit-list"></div>
+  </div>
+
+</div><!-- shell -->
+
+<footer>TACTICAL-SWARM-INTELLIGENCE · MULTI-AGENT AI SIMULATION · CLASSIFIED</footer>
+
+<script>
+// ────────────────────────────────────────────────────────────
+//  CONFIG
+// ────────────────────────────────────────────────────────────
+const API = 'http://localhost:5000';
+let simInterval  = null;
+let simRunning   = false;
+let flashLines   = [];   // attack flash lines for this frame
+
+// ────────────────────────────────────────────────────────────
+//  CANVAS SETUP
+// ────────────────────────────────────────────────────────────
+const canvas = document.getElementById('battlefield');
+const ctx    = canvas.getContext('2d');
+
+// colour helpers
+const C = {
+  bg:         '#080c0a',
+  grid:       '#0d1e12',
+  zone_n:     'rgba(80,120,90,0.18)',
+  zone_b:     'rgba(0,180,255,0.22)',
+  zone_r:     'rgba(255,30,30,0.22)',
+  zone_nb:    '#00d4ff',
+  zone_nr:    '#ff3030',
+  zone_nn:    '#2a4a32',
+  obs:        '#162a1c',
+  obs_border: '#1e3a28',
+  blue:       '#00d4ff',
+  blue_cmd:   '#ffd700',
+  red:        '#ff5050',
+  red_cmd:    '#ff9900',
+  dead:       '#1a2a1e',
+  atk_b:      'rgba(0,212,255,0.7)',
+  atk_r:      'rgba(255,80,80,0.7)',
+};
+
+// ────────────────────────────────────────────────────────────
+//  DRAW
+// ────────────────────────────────────────────────────────────
+function draw(state) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // background
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // tactical grid
+  ctx.strokeStyle = C.grid;
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < W; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  const bf = state.battlefield;
+
+  // zones
+  bf.zones.forEach(z => {
+    const fill   = z.owner === 'blue' ? C.zone_b : z.owner === 'red' ? C.zone_r : C.zone_n;
+    const stroke = z.owner === 'blue' ? C.zone_nb : z.owner === 'red' ? C.zone_nr : C.zone_nn;
+    ctx.beginPath();
+    ctx.arc(z.x, z.y, z.radius, 0, Math.PI*2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4,3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // label
+    ctx.fillStyle = stroke;
+    ctx.font = '700 9px Share Tech Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(z.label, z.x, z.y + 4);
+  });
+
+  // obstacles
+  bf.obstacles.forEach(o => {
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.radius, 0, Math.PI*2);
+    ctx.fillStyle = C.obs;
+    ctx.fill();
+    ctx.strokeStyle = C.obs_border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // cross-hatch
+    ctx.save();
+    ctx.clip();
+    ctx.strokeStyle = '#1e3a28';
+    ctx.lineWidth = 1;
+    for (let i = -o.radius*2; i < o.radius*2; i += 8) {
+      ctx.beginPath();
+      ctx.moveTo(o.x + i, o.y - o.radius);
+      ctx.lineTo(o.x + i + o.radius, o.y + o.radius);
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+
+  // attack lines (flash)
+  state.attacks.forEach(atk => {
+    ctx.beginPath();
+    ctx.moveTo(atk.x1, atk.y1);
+    ctx.lineTo(atk.x2, atk.y2);
+    ctx.strokeStyle = atk.team === 'blue' ? C.atk_b : C.atk_r;
+    ctx.lineWidth = atk.lethal ? 2.5 : 1;
+    ctx.stroke();
+  });
+
+  // agents
+  const drawAgent = (agent) => {
+    if (!agent.alive) {
+      ctx.fillStyle = C.dead;
+      ctx.beginPath();
+      ctx.arc(agent.x, agent.y, 3, 0, Math.PI*2);
+      ctx.fill();
+      return;
+    }
+
+    const isCmd = agent.rank === 'commander';
+    const col   = agent.team === 'blue'
+                  ? (isCmd ? C.blue_cmd : C.blue)
+                  : (isCmd ? C.red_cmd  : C.red);
+    const r     = isCmd ? 7 : 5;
+
+    // glow
+    if (agent.influence) {
+      ctx.beginPath();
+      ctx.arc(agent.x, agent.y, r + 5, 0, Math.PI*2);
+      ctx.fillStyle = agent.team === 'blue'
+        ? 'rgba(0,212,255,0.15)'
+        : 'rgba(255,80,80,0.15)';
+      ctx.fill();
+    }
+
+    // body
+    ctx.beginPath();
+    if (isCmd) {
+      ctx.rect(agent.x - r, agent.y - r, r*2, r*2);
+    } else {
+      ctx.arc(agent.x, agent.y, r, 0, Math.PI*2);
+    }
+    ctx.fillStyle = col;
+    ctx.fill();
+
+    // health bar
+    const hpPct = agent.health / agent.max_health;
+    const bw = 16;
+    const bx = agent.x - bw/2;
+    const by = agent.y - r - 6;
+    ctx.fillStyle = '#0a150d';
+    ctx.fillRect(bx, by, bw, 3);
+    ctx.fillStyle = hpPct > 0.5 ? '#00ff88' : hpPct > 0.25 ? '#ffd700' : '#ff3030';
+    ctx.fillRect(bx, by, bw * hpPct, 3);
+  };
+
+  [...state.blue_team, ...state.red_team].forEach(drawAgent);
+}
+
+// ────────────────────────────────────────────────────────────
+//  UI UPDATE
+// ────────────────────────────────────────────────────────────
+function updateUI(state) {
+  // tick
+  document.getElementById('tick-num').textContent = state.tick;
+
+  // strategies
+  document.getElementById('blue-strategy').textContent = state.blue_strategy;
+  document.getElementById('red-strategy').textContent  = state.red_strategy;
+
+  // alive ratio bar
+  const total = state.blue_alive + state.red_alive;
+  const bPct  = total ? (state.blue_alive / total * 100).toFixed(1) : 50;
+  document.getElementById('ratio-bar-blue').style.width = bPct + '%';
+  document.getElementById('blue-alive-count').textContent = state.blue_alive;
+  document.getElementById('red-alive-count').textContent  = state.red_alive;
+
+  // zone bar
+  const totalZ = 5;
+  const bZPct  = (state.blue_zones / totalZ * 100).toFixed(0);
+  document.getElementById('zone-bar-blue').style.width = bZPct + '%';
+  document.getElementById('blue-zones').textContent = state.blue_zones;
+  document.getElementById('red-zones').textContent  = state.red_zones;
+
+  // zones
+  state.battlefield.zones.forEach((z, i) => {
+    const el = document.getElementById('z' + i);
+    if (el) {
+      el.textContent  = z.owner.toUpperCase();
+      el.className    = 'zone-owner ' + z.owner;
+    }
+  });
+
+  // unit lists
+  buildUnitList('blue-unit-list', state.blue_team, '#00d4ff', '#ffd700');
+  buildUnitList('red-unit-list',  state.red_team,  '#ff5050', '#ff9900');
+
+  // event log
+  if (state.log && state.log.length) {
+    const box = document.getElementById('event-log');
+    box.innerHTML = state.log.slice().reverse()
+      .map(l => `<p>${l}</p>`).join('');
+  }
+
+  // winner
+  if (state.winner) {
+    stopSim();
+    const ov  = document.getElementById('winner-overlay');
+    const txt = document.getElementById('winner-text');
+    txt.textContent = (state.winner === 'blue' ? '🔵 BLUE' : '🔴 RED') + ' WINS';
+    txt.className   = 'winner-text ' + state.winner;
+    ov.classList.add('show');
+  }
+}
+
+function buildUnitList(containerId, units, soldierColor, cmdColor) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = units.map(u => {
+    const col  = u.rank === 'commander' ? cmdColor : soldierColor;
+    const hPct = ((u.health / u.max_health) * 100).toFixed(0);
+    const hp_c = u.health/u.max_health > 0.5 ? '#00ff88'
+               : u.health/u.max_health > 0.25 ? '#ffd700' : '#ff3030';
+    return `
+      <div class="unit-row ${u.alive ? '' : 'dead'}">
+        <div class="unit-dot ${u.rank === 'commander' ? 'commander' : ''}"
+             style="background:${u.alive ? col : '#1a2a1e'}"></div>
+        <div style="font-size:0.55rem;color:#446644;width:24px">${u.rank === 'commander' ? 'CMD' : 'S'+u.squad}</div>
+        <div class="unit-hp">
+          <div class="unit-hp-fill" style="width:${u.alive ? hPct : 0}%;background:${hp_c}"></div>
+        </div>
+        <div style="font-size:0.5rem;color:#446644;width:26px;text-align:right">${u.alive ? Math.round(u.health) : 'KIA'}</div>
+      </div>`;
+  }).join('');
+}
+
+// ────────────────────────────────────────────────────────────
+//  SIMULATION LOOP
+// ────────────────────────────────────────────────────────────
+async function tick() {
+  try {
+    const res   = await fetch(`${API}/battle`);
+    const state = await res.json();
+    draw(state);
+    updateUI(state);
+  } catch (e) {
+    addLog('⚠ Connection lost — is the server running?');
+  }
+}
+
+function toggleSim() {
+  if (simRunning) { stopSim(); } else { startSim(); }
+}
+function startSim() {
+  if (simRunning) return;
+  simRunning = true;
+  document.getElementById('btn-start').textContent = '⏸ PAUSE';
+  document.getElementById('ticker').textContent = '● SIMULATION ACTIVE';
+  const ms = parseInt(document.getElementById('speed-select').value, 10);
+  simInterval = setInterval(tick, ms);
+}
+function stopSim() {
+  simRunning = false;
+  clearInterval(simInterval);
+  simInterval = null;
+  document.getElementById('btn-start').textContent = '▶ START';
+  document.getElementById('ticker').textContent = '◌ PAUSED';
+}
+async function resetBattle() {
+  stopSim();
+  document.getElementById('winner-overlay').classList.remove('show');
+  try {
+    await fetch(`${API}/reset`);
+    const res   = await fetch(`${API}/state`);
+    const state = await res.json();
+    draw(state);
+    updateUI(state);
+    document.getElementById('event-log').innerHTML =
+      '<p style="color:#2a5a3a">// simulation reset — press START</p>';
+  } catch (e) {
+    addLog('⚠ Could not connect to server.');
+  }
+}
+
+// change speed on the fly
+document.getElementById('speed-select').addEventListener('change', () => {
+  if (simRunning) { stopSim(); startSim(); }
+});
+
+function addLog(msg) {
+  const box = document.getElementById('event-log');
+  const p   = document.createElement('p');
+  p.textContent = msg;
+  box.prepend(p);
+}
+
+// ── init: draw empty grid ──
+(async () => {
+  try {
+    const res   = await fetch(`${API}/state`);
+    const state = await res.json();
+    draw(state);
+    updateUI(state);
+  } catch {
+    // server not up yet — draw blank canvas
+    const W = canvas.width, H = canvas.height;
+    ctx.fillStyle = '#080c0a';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#2a4a32';
+    ctx.font = '12px Share Tech Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('START SERVER:  python app.py', W/2, H/2);
+  }
+})();
+</script>
+</body>
+</html>
